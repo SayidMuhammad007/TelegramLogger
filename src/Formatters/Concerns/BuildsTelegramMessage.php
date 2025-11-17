@@ -67,10 +67,11 @@ trait BuildsTelegramMessage
         $maxLength = $this->options['max_message_length'] ?? 4096;
 
         if (mb_strlen($formatted) > $maxLength) {
-            $formatted = mb_substr($formatted, 0, $maxLength - 100) . "\n\n... (truncated)";
+            $formatted = $this->truncateSafely($formatted, $maxLength - 25);
+            $formatted .= "\n\n... (truncated)";
         }
 
-        return $formatted;
+        return $this->ensureBalancedTags($formatted);
     }
 
     protected function formatContext(array $context): string
@@ -116,6 +117,35 @@ trait BuildsTelegramMessage
     protected function escapeHtml(string $text): string
     {
         return htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    private function truncateSafely(string $message, int $limit): string
+    {
+        $truncated = mb_substr($message, 0, $limit);
+        $lastOpen = mb_strrpos($truncated, '<');
+        $lastClose = mb_strrpos($truncated, '>');
+
+        if ($lastOpen !== false && ($lastClose === false || $lastOpen > $lastClose)) {
+            $truncated = mb_substr($truncated, 0, $lastOpen);
+        }
+
+        return rtrim($truncated);
+    }
+
+    private function ensureBalancedTags(string $message): string
+    {
+        $tags = ['pre', 'b'];
+
+        foreach ($tags as $tag) {
+            $openCount = substr_count($message, "<{$tag}>");
+            $closeCount = substr_count($message, "</{$tag}>");
+
+            if ($openCount > $closeCount) {
+                $message .= str_repeat("</{$tag}>", $openCount - $closeCount);
+            }
+        }
+
+        return $message;
     }
 }
 
