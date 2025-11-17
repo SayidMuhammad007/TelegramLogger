@@ -3,6 +3,7 @@
 namespace SayidMuhammad\TelegramLogger\Tests\Unit;
 
 use Monolog\Level;
+use Monolog\LogRecord;
 use PHPUnit\Framework\TestCase;
 use SayidMuhammad\TelegramLogger\Formatters\TelegramFormatter;
 use SayidMuhammad\TelegramLogger\Handlers\TelegramHandler;
@@ -92,9 +93,30 @@ class TelegramHandlerTest extends TestCase
             Level::Warning
         );
 
-        $this->assertTrue($handler->isHandling(Level::Warning));
-        $this->assertTrue($handler->isHandling(Level::Error));
-        $this->assertFalse($handler->isHandling(Level::Info));
+        $warningRecord = new LogRecord(
+            new \DateTimeImmutable(),
+            'test',
+            Level::Warning,
+            'Warning message'
+        );
+
+        $errorRecord = new LogRecord(
+            new \DateTimeImmutable(),
+            'test',
+            Level::Error,
+            'Error message'
+        );
+
+        $infoRecord = new LogRecord(
+            new \DateTimeImmutable(),
+            'test',
+            Level::Info,
+            'Info message'
+        );
+
+        $this->assertTrue($handler->isHandling($warningRecord));
+        $this->assertTrue($handler->isHandling($errorRecord));
+        $this->assertFalse($handler->isHandling($infoRecord));
     }
 }
 

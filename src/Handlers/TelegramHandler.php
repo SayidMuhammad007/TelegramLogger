@@ -3,6 +3,7 @@
 namespace SayidMuhammad\TelegramLogger\Handlers;
 
 use Monolog\Handler\AbstractProcessingHandler;
+use Monolog\Level;
 use Monolog\LogRecord;
 use SayidMuhammad\TelegramLogger\Formatters\TelegramFormatter;
 use SayidMuhammad\TelegramLogger\Services\TelegramService;
@@ -38,7 +39,7 @@ class TelegramHandler extends AbstractProcessingHandler
      * @param TelegramService $telegramService Telegram service instance
      * @param string $chatId Chat ID
      * @param int|null $topicId Optional topic ID
-     * @param int|string $level Minimum log level
+     * @param int|string|Level $level Minimum log level
      * @param bool $bubble Whether messages bubble up the stack
      * @param array $retryConfig Retry configuration
      */
@@ -46,7 +47,7 @@ class TelegramHandler extends AbstractProcessingHandler
         TelegramService $telegramService,
         string $chatId,
         ?int $topicId = null,
-        int|string $level = \Monolog\Level::Error,
+        int|string|Level $level = Level::Error,
         bool $bubble = true,
         array $retryConfig = []
     ) {
