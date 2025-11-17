@@ -4,6 +4,11 @@
     "keywords": ["laravel", "telegram", "logger", "logging", "monolog"],
     "type": "library",
     "license": "MIT",
+    "homepage": "https://github.com/sayidmuhammad/laravel-telegram-logger",
+    "support": {
+        "issues": "https://github.com/sayidmuhammad/laravel-telegram-logger/issues",
+        "source": "https://github.com/sayidmuhammad/laravel-telegram-logger"
+    },
     "authors": [
         {
             "name": "SayidMuhammad",
