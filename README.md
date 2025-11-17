@@ -3,7 +3,7 @@
 [![Latest Version](https://img.shields.io/packagist/v/sayidmuhammad/laravel-telegram-logger.svg?style=flat-square)](https://packagist.org/packages/sayidmuhammad/laravel-telegram-logger)
 [![License](https://img.shields.io/packagist/l/sayidmuhammad/laravel-telegram-logger.svg?style=flat-square)](https://packagist.org/packages/sayidmuhammad/laravel-telegram-logger)
 
-Send Laravel logs to Telegram chat or topic via bot. This package integrates seamlessly with Laravel's logging system and allows you to receive log notifications directly in your Telegram chats or group topics.
+Send Laravel logs to Telegram chat or topic via bot.. This package integrates seamlessly with Laravel's logging system and allows you to receive log notifications directly in your Telegram chats or group topics.
 
 ## Features
 
