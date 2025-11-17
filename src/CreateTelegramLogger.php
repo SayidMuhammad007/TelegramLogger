@@ -3,7 +3,7 @@
 namespace SayidMuhammad\TelegramLogger;
 
 use Illuminate\Log\LogManager;
-use Monolog\Level;
+use Monolog\Logger;
 use SayidMuhammad\TelegramLogger\Formatters\TelegramFormatter;
 use SayidMuhammad\TelegramLogger\Handlers\TelegramHandler;
 use SayidMuhammad\TelegramLogger\Services\TelegramService;
@@ -73,28 +73,29 @@ class CreateTelegramLogger
     }
 
     /**
-     * Parse log level string to Monolog Level
+     * Parse log level into a Monolog compatible value
      *
      * @param string|int $level
-     * @return Level
+     * @return mixed
      */
-    private function parseLevel(string|int $level): Level
+    private function parseLevel(string|int $level): mixed
     {
-        if (is_int($level)) {
-            return Level::fromValue($level);
+        if (class_exists(\Monolog\Level::class)) {
+            if (is_int($level)) {
+                return \Monolog\Level::fromValue($level);
+            }
+
+            $name = strtoupper($level);
+
+            return \Monolog\Level::fromName($name) ?? \Monolog\Level::Error;
         }
 
-        return match (strtolower($level)) {
-            'debug' => Level::Debug,
-            'info' => Level::Info,
-            'notice' => Level::Notice,
-            'warning' => Level::Warning,
-            'error' => Level::Error,
-            'critical' => Level::Critical,
-            'alert' => Level::Alert,
-            'emergency' => Level::Emergency,
-            default => Level::Error,
-        };
+        // Monolog 2 fallback (returns int)
+        if (is_int($level)) {
+            return $level;
+        }
+
+        return Logger::toMonologLevel($level);
     }
 }
 
