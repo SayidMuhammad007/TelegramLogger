@@ -129,6 +129,13 @@ trait BuildsTelegramMessage
             $truncated = mb_substr($truncated, 0, $lastOpen);
         }
 
+        $lastAmp = mb_strrpos($truncated, '&');
+        $lastSemi = mb_strrpos($truncated, ';');
+
+        if ($lastAmp !== false && ($lastSemi === false || $lastAmp > $lastSemi)) {
+            $truncated = mb_substr($truncated, 0, $lastAmp);
+        }
+
         return rtrim($truncated);
     }
 
