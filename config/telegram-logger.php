@@ -95,12 +95,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate Limiting
+    |--------------------------------------------------------------------------
+    |
+    | Telegram API allows ~30 messages per second per bot.
+    | This setting limits messages to prevent 429 errors.
+    |
+    */
+    'rate_limit' => [
+        'enabled' => true,
+        'max_messages_per_second' => 20, // Conservative limit (Telegram allows 30)
+        'max_messages_per_minute' => 1000, // Additional safety limit
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Timeout
     |--------------------------------------------------------------------------
     |
     | Request timeout in seconds
+    | Increase this if you experience timeout errors
     |
     */
-    'timeout' => 5,
+    'timeout' => env('TELEGRAM_LOG_TIMEOUT', 10),
 ];
 

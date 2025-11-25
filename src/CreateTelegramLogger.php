@@ -41,7 +41,8 @@ class CreateTelegramLogger
         // Create Telegram service
         $telegramService = new TelegramService(
             $botToken,
-            $config['timeout'] ?? 5
+            $config['timeout'] ?? 5,
+            $config['rate_limit'] ?? []
         );
 
         // Parse log level
