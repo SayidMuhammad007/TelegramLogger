@@ -172,11 +172,12 @@ class TelegramService
         $minuteStart = $now - ($now % 60);
         $minuteKey = "telegram_rate_limit_minute_{$minuteStart}";
 
+        // Use atomic set-if-absent with TTL to avoid race conditions
+        Cache::add($secondKey, 0, 2);
         Cache::increment($secondKey, 1);
-        Cache::put($secondKey, Cache::get($secondKey), 2); // Expire after 2 seconds
 
+        Cache::add($minuteKey, 0, 65);
         Cache::increment($minuteKey, 1);
-        Cache::put($minuteKey, Cache::get($minuteKey), 65); // Expire after 65 seconds
     }
 
     /**
@@ -189,6 +190,7 @@ class TelegramService
     {
         $cooldownKey = 'telegram_rate_limit_cooldown';
         Cache::put($cooldownKey, true, $retryAfter + 1);
+        Cache::put($cooldownKey . '_ttl', $retryAfter, $retryAfter + 1);
     }
 
     /**

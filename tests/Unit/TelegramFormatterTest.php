@@ -69,7 +69,7 @@ class TelegramFormatterTest extends TestCase
         );
 
         $formatted = $formatter->format($record);
-        $this->assertStringContainsString('Context:', $formatted);
+        $this->assertStringContainsString('Context', $formatted);
         $this->assertStringContainsString('user_id', $formatted);
     }
 

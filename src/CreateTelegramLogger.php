@@ -21,7 +21,7 @@ class CreateTelegramLogger
      */
     public function __invoke(array $config)
     {
-        $config = array_merge(config('telegram-logger', []), $config);
+        $config = array_replace_recursive(config('telegram-logger', []), $config);
 
         // Check if logging is enabled
         if (!($config['enabled'] ?? true)) {
@@ -41,7 +41,7 @@ class CreateTelegramLogger
         // Create Telegram service
         $telegramService = new TelegramService(
             $botToken,
-            $config['timeout'] ?? 5,
+            $config['timeout'] ?? 10,
             $config['rate_limit'] ?? []
         );
 
@@ -66,11 +66,11 @@ class CreateTelegramLogger
 
         $handler->setFormatter($formatter);
 
-        // Create logger
-        $logger = app(LogManager::class)->channel('single');
-        $logger->pushHandler($handler);
+        // Create fresh logger instead of reusing shared instance
+        $monolog = new \Monolog\Logger('telegram');
+        $monolog->pushHandler($handler);
 
-        return $logger;
+        return new \Illuminate\Log\Logger($monolog, app('events'));
     }
 
     /**
@@ -88,7 +88,11 @@ class CreateTelegramLogger
 
             $name = strtoupper($level);
 
-            return \Monolog\Level::fromName($name) ?? \Monolog\Level::Error;
+            try {
+                return \Monolog\Level::fromName($name);
+            } catch (\ValueError) {
+                return \Monolog\Level::Error;
+            }
         }
 
         // Monolog 2 fallback (returns int)

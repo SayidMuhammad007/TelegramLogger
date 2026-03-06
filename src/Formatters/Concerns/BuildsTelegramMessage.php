@@ -24,54 +24,88 @@ trait BuildsTelegramMessage
     {
         $parts = [];
         $levelName = strtoupper($data['level_name'] ?? 'INFO');
+        $maxLength = $this->options['max_message_length'] ?? 4096;
 
-        if (($this->options['use_emojis'] ?? true) && ($this->options['include_level'] ?? true)) {
-            $emoji = $this->emojis[strtolower($levelName)] ?? '';
-            $parts[] = trim($emoji . ' <b>' . $levelName . '</b>');
-        } elseif ($this->options['include_level'] ?? true) {
-            $parts[] = '<b>' . $levelName . '</b>';
+        // Level header with emoji
+        if ($this->options['include_level'] ?? true) {
+            $emoji = '';
+            if ($this->options['use_emojis'] ?? true) {
+                $emoji = $this->emojis[strtolower($levelName)] ?? '';
+            }
+            $parts[] = trim($emoji . ' ' . $levelName);
         }
 
+        // Divider
+        $parts[] = '━━━━━━━━━━━━━━━━━━';
+
+        // Date
         if ($this->options['include_date'] ?? true) {
             $date = $data['datetime'] ?? new \DateTimeImmutable();
             if (!$date instanceof \DateTimeInterface) {
                 $date = new \DateTimeImmutable();
             }
-
             $parts[] = '📅 ' . $date->format('Y-m-d H:i:s');
         }
 
-        $parts[] = "\n" . $this->escapeHtml((string) ($data['message'] ?? ''));
+        // Environment info (only if Laravel container is available)
+        try {
+            $appEnv = config('app.env', 'production');
+            $appName = config('app.name', '');
+            if ($appName) {
+                $parts[] = '🌍 ' . $appEnv . ' (' . $appName . ')';
+            } else {
+                $parts[] = '🌍 ' . $appEnv;
+            }
+        } catch (\Exception) {
+            // Config not available (e.g., in unit tests without Laravel container)
+        }
 
+        // Message
+        $message = $this->escapeHtml((string) ($data['message'] ?? ''));
+        $parts[] = "\n💬 <b>" . $message . '</b>';
+
+        // Context (excluding 'exception' key which is shown in stack trace)
         if (($this->options['include_context'] ?? true) && !empty($data['context'] ?? [])) {
-            $parts[] = "\n\n<b>Context:</b>\n<pre>" . $this->escapeHtml(
-                $this->formatContext($data['context'])
-            ) . '</pre>';
-        }
+            $context = $data['context'];
+            unset($context['exception']);
 
-        if (!empty($data['extra'] ?? [])) {
-            $parts[] = "\n\n<b>Extra:</b>\n<pre>" . $this->escapeHtml(
-                $this->formatContext($data['extra'])
-            ) . '</pre>';
-        }
-
-        if (($this->options['include_trace'] ?? true) && $this->levelRequiresTrace($levelName)) {
-            $exception = $data['exception'] ?? ($data['context']['exception'] ?? null);
-            $trace = $this->formatStackTrace($exception);
-            if ($trace !== '') {
-                $parts[] = "\n\n<b>Stack Trace:</b>\n<pre>" . $this->escapeHtml($trace) . '</pre>';
+            if (!empty($context)) {
+                $parts[] = "\n📋 <b>Context</b>";
+                $parts[] = $this->escapeHtml($this->formatContext($context));
             }
         }
 
-        $formatted = implode('', $parts);
-        $maxLength = $this->options['max_message_length'] ?? 4096;
-
-        if (mb_strlen($formatted) > $maxLength) {
-            $formatted = $this->truncateSafely($formatted, $maxLength - 25);
-            $formatted .= "\n\n... (truncated)";
+        // Extra
+        if (($this->options['include_extra'] ?? false) && !empty($data['extra'] ?? [])) {
+            $parts[] = "\n📦 <b>Extra</b>";
+            $parts[] = $this->escapeHtml($this->formatContext($data['extra']));
         }
 
-        return $this->ensureBalancedTags($formatted);
+        // Stack Trace with chained exceptions support
+        if (($this->options['include_trace'] ?? true) && $this->levelRequiresTrace($levelName)) {
+            $exception = $data['exception'] ?? ($data['context']['exception'] ?? null);
+            $trace = $this->formatStackTraceWithChaining($exception);
+            if ($trace !== '') {
+                $parts[] = "\n🔍 <b>Stack Trace</b>";
+                $parts[] = '<pre>' . $this->escapeHtml($trace) . '</pre>';
+            }
+        }
+
+        // Join with newlines
+        $formatted = implode("\n", $parts);
+
+        // Truncate safely, accounting for closing tags
+        $suffix = "\n\n... (truncated)";
+        if (mb_strlen($formatted) > $maxLength) {
+            $truncateLength = $maxLength - mb_strlen($suffix) - 30; // Reserve space for closing tags
+            $formatted = $this->truncateSafely($formatted, $truncateLength);
+            $formatted = $this->ensureBalancedTags($formatted);
+            $formatted .= $suffix;
+        } else {
+            $formatted = $this->ensureBalancedTags($formatted);
+        }
+
+        return $formatted;
     }
 
     protected function formatContext(array $context): string
@@ -114,6 +148,48 @@ trait BuildsTelegramMessage
         return implode("\n", array_slice($trace, 0, 20));
     }
 
+    protected function formatStackTraceWithChaining(mixed $exception): string
+    {
+        if (!$exception instanceof \Throwable) {
+            return '';
+        }
+
+        $output = [];
+        $current = $exception;
+        $depth = 0;
+        $maxDepth = 5; // Limit chained exception depth
+
+        while ($current !== null && $depth < $maxDepth) {
+            if ($depth > 0) {
+                $output[] = "\nCaused by:";
+            }
+
+            $output[] = get_class($current) . ': ' . $current->getMessage();
+            $output[] = 'File: ' . $current->getFile() . ':' . $current->getLine();
+
+            $traceLines = [];
+            foreach ($current->getTrace() as $index => $frame) {
+                if (count($traceLines) >= 10) break; // Limit trace per exception
+
+                $file = $frame['file'] ?? 'unknown';
+                $line = $frame['line'] ?? 0;
+                $function = $frame['function'] ?? 'unknown';
+                $class = $frame['class'] ?? '';
+                $type = $frame['type'] ?? '';
+
+                $traceLines[] = sprintf('#%d %s%s%s() in %s:%d', $index, $class, $type, $function, $file, $line);
+            }
+
+            $output = array_merge($output, $traceLines);
+
+            // Get previous exception (Throwable::getPrevious)
+            $current = method_exists($current, 'getPrevious') ? $current->getPrevious() : null;
+            $depth++;
+        }
+
+        return implode("\n", $output);
+    }
+
     protected function escapeHtml(string $text): string
     {
         return htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -141,7 +217,7 @@ trait BuildsTelegramMessage
 
     private function ensureBalancedTags(string $message): string
     {
-        $tags = ['pre', 'b'];
+        $tags = ['b', 'pre']; // Close inner tags first
 
         foreach ($tags as $tag) {
             $openCount = substr_count($message, "<{$tag}>");

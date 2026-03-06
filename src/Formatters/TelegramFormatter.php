@@ -46,6 +46,7 @@ if (class_exists(\Monolog\LogRecord::class)) {
                 'include_date' => true,
                 'include_level' => true,
                 'include_context' => true,
+                'include_extra' => false,
                 'include_trace' => true,
                 'max_message_length' => 4096,
                 'use_emojis' => true,
@@ -82,7 +83,14 @@ if (class_exists(\Monolog\LogRecord::class)) {
 
         public function format(array $record): string
         {
-            $levelName = $record['level_name'] ?? ($record['level'] ?? 'info');
+            $levelName = $record['level_name'] ?? null;
+
+            // Handle Monolog 2 where level is an integer
+            if (!$levelName && isset($record['level'])) {
+                $levelName = \Monolog\Logger::getLevelName($record['level']);
+            }
+
+            $levelName = $levelName ?? 'info';
             $datetime = $record['datetime'] ?? new \DateTimeImmutable();
             if (!$datetime instanceof \DateTimeInterface) {
                 $datetime = new \DateTimeImmutable($datetime);
@@ -114,6 +122,7 @@ if (class_exists(\Monolog\LogRecord::class)) {
                 'include_date' => true,
                 'include_level' => true,
                 'include_context' => true,
+                'include_extra' => false,
                 'include_trace' => true,
                 'max_message_length' => 4096,
                 'use_emojis' => true,

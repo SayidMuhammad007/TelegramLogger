@@ -61,6 +61,7 @@ return [
         'include_date' => true,
         'include_level' => true,
         'include_context' => true,
+        'include_extra' => false,
         'include_trace' => true, // For errors
         'max_message_length' => 4096, // Telegram limit
         'use_emojis' => true,
