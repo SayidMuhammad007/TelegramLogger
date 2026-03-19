@@ -26,78 +26,63 @@ trait BuildsTelegramMessage
         $levelName = strtoupper($data['level_name'] ?? 'INFO');
         $maxLength = $this->options['max_message_length'] ?? 4096;
 
-        // Level header with emoji
+        // Line 1: {emoji} {LEVEL} 📅 {datetime}
+        $header = '';
         if ($this->options['include_level'] ?? true) {
             $emoji = '';
             if ($this->options['use_emojis'] ?? true) {
                 $emoji = $this->emojis[strtolower($levelName)] ?? '';
             }
-            $parts[] = trim($emoji . ' ' . $levelName);
+            $header = trim($emoji . ' ' . $levelName);
         }
 
-        // Divider
-        $parts[] = '━━━━━━━━━━━━━━━━━━';
-
-        // Date
         if ($this->options['include_date'] ?? true) {
             $date = $data['datetime'] ?? new \DateTimeImmutable();
             if (!$date instanceof \DateTimeInterface) {
                 $date = new \DateTimeImmutable();
             }
-            $parts[] = '📅 ' . $date->format('Y-m-d H:i:s');
+            $header = trim($header . ' 📅 ' . $date->format('Y-m-d H:i:s'));
         }
 
-        // Environment info (only if Laravel container is available)
-        try {
-            $appEnv = config('app.env', 'production');
-            $appName = config('app.name', '');
-            if ($appName) {
-                $parts[] = '🌍 ' . $appEnv . ' (' . $appName . ')';
-            } else {
-                $parts[] = '🌍 ' . $appEnv;
-            }
-        } catch (\Exception) {
-            // Config not available (e.g., in unit tests without Laravel container)
+        if ($header !== '') {
+            $parts[] = $header;
         }
 
-        // Message
-        $message = $this->escapeHtml((string) ($data['message'] ?? ''));
-        $parts[] = "\n💬 <b>" . $message . '</b>';
+        // Line 2: message (plain, no emoji)
+        $parts[] = $this->escapeHtml((string) ($data['message'] ?? ''));
 
-        // Context (excluding 'exception' key which is shown in stack trace)
+        // Context as JSON code block
         if (($this->options['include_context'] ?? true) && !empty($data['context'] ?? [])) {
             $context = $data['context'];
             unset($context['exception']);
 
             if (!empty($context)) {
-                $parts[] = "\n📋 <b>Context</b>";
-                $parts[] = $this->escapeHtml($this->formatContext($context));
+                $json = $this->formatContext($context);
+                $parts[] = "\nContext:\n<pre><code class=\"language-json\">" . $this->escapeHtml($json) . '</code></pre>';
             }
         }
 
         // Extra
         if (($this->options['include_extra'] ?? false) && !empty($data['extra'] ?? [])) {
-            $parts[] = "\n📦 <b>Extra</b>";
-            $parts[] = $this->escapeHtml($this->formatContext($data['extra']));
+            $json = $this->formatContext($data['extra']);
+            $parts[] = "\nExtra:\n<pre><code class=\"language-json\">" . $this->escapeHtml($json) . '</code></pre>';
         }
 
-        // Stack Trace with chained exceptions support
+        // Stack Trace
         if (($this->options['include_trace'] ?? true) && $this->levelRequiresTrace($levelName)) {
             $exception = $data['exception'] ?? ($data['context']['exception'] ?? null);
             $trace = $this->formatStackTraceWithChaining($exception);
             if ($trace !== '') {
-                $parts[] = "\n🔍 <b>Stack Trace</b>";
-                $parts[] = '<pre>' . $this->escapeHtml($trace) . '</pre>';
+                $parts[] = "\nStack Trace:\n<pre>" . $this->escapeHtml($trace) . '</pre>';
             }
         }
 
-        // Join with newlines
         $formatted = implode("\n", $parts);
 
-        // Truncate safely, accounting for closing tags
+        // Truncate safely
         $suffix = "\n\n... (truncated)";
         if (mb_strlen($formatted) > $maxLength) {
-            $truncateLength = $maxLength - mb_strlen($suffix) - 30; // Reserve space for closing tags
+            $truncateLength = $maxLength - mb_strlen($suffix) - 30;
             $formatted = $this->truncateSafely($formatted, $truncateLength);
             $formatted = $this->ensureBalancedTags($formatted);
             $formatted .= $suffix;
@@ -217,10 +202,10 @@ trait BuildsTelegramMessage
 
     private function ensureBalancedTags(string $message): string
     {
-        $tags = ['b', 'pre']; // Close inner tags first
+        $tags = ['code', 'pre']; // Close inner tags first
 
         foreach ($tags as $tag) {
-            $openCount = substr_count($message, "<{$tag}>");
+            $openCount = preg_match_all('/<' . $tag . '[\s>]/', $message);
             $closeCount = substr_count($message, "</{$tag}>");
 
             if ($openCount > $closeCount) {
