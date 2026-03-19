@@ -34,6 +34,11 @@ class TelegramLoggerServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../config/telegram-logger.php' => config_path('telegram-logger.php'),
         ], 'telegram-logger-config');
+
+        // Publish the job class so consumers can customise retry/failure behaviour
+        $this->publishes([
+            __DIR__ . '/Jobs/SendTelegramLogJob.php' => app_path('Jobs/SendTelegramLogJob.php'),
+        ], 'telegram-logger-jobs');
     }
 }
 

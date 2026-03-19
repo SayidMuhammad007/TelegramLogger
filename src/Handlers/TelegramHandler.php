@@ -17,15 +17,28 @@ if (class_exists(\Monolog\LogRecord::class)) {
 
         public function __construct(
             TelegramService $telegramService,
-            string $chatId,
-            ?int $topicId = null,
-            mixed $level = Logger::ERROR,
-            bool $bubble = true,
-            array $retryConfig = []
+            string          $chatId,
+            ?int            $topicId         = null,
+            mixed           $level           = Logger::ERROR,
+            bool            $bubble          = true,
+            array           $retryConfig     = [],
+            string          $botToken        = '',
+            int             $httpTimeout     = 10,
+            array           $rateLimitConfig = [],
+            array           $queueConfig     = [],
         ) {
             parent::__construct($level, $bubble);
 
-            $this->configureHandler($telegramService, $chatId, $topicId, $retryConfig);
+            $this->configureHandler(
+                $telegramService,
+                $chatId,
+                $topicId,
+                $retryConfig,
+                $botToken,
+                $httpTimeout,
+                $rateLimitConfig,
+                $queueConfig,
+            );
         }
 
         protected function write(\Monolog\LogRecord $record): void
@@ -44,21 +57,39 @@ if (class_exists(\Monolog\LogRecord::class)) {
 
         public function __construct(
             TelegramService $telegramService,
-            string $chatId,
-            ?int $topicId = null,
-            mixed $level = Logger::ERROR,
-            bool $bubble = true,
-            array $retryConfig = []
+            string          $chatId,
+            ?int            $topicId         = null,
+            mixed           $level           = Logger::ERROR,
+            bool            $bubble          = true,
+            array           $retryConfig     = [],
+            string          $botToken        = '',
+            int             $httpTimeout     = 10,
+            array           $rateLimitConfig = [],
+            array           $queueConfig     = [],
         ) {
             parent::__construct($level, $bubble);
 
-            $this->configureHandler($telegramService, $chatId, $topicId, $retryConfig);
+            $this->configureHandler(
+                $telegramService,
+                $chatId,
+                $topicId,
+                $retryConfig,
+                $botToken,
+                $httpTimeout,
+                $rateLimitConfig,
+                $queueConfig,
+            );
         }
 
         /**
+         * Monolog 2 uses array records. This signature is intentionally
+         * incompatible with the Monolog 3 AbstractProcessingHandler because
+         * this entire else-block is only ever loaded when Monolog 3 is absent.
+         *
          * @param array<string,mixed> $record
+         * @phpstan-ignore-next-line
          */
-        protected function write(array $record): void
+        protected function write($record): void  // @phpcs:ignore
         {
             $message = $this->getFormatter()->format($record);
             $this->sendToTelegram($message);

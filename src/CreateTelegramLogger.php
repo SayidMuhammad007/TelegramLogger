@@ -30,7 +30,7 @@ class CreateTelegramLogger
 
         // Validate required configuration
         $botToken = $config['bot_token'] ?? null;
-        $chatId = $config['chat_id'] ?? null;
+        $chatId   = $config['chat_id']   ?? null;
 
         if (empty($botToken) || empty($chatId)) {
             throw new \InvalidArgumentException(
@@ -38,24 +38,34 @@ class CreateTelegramLogger
             );
         }
 
-        // Create Telegram service
+        $httpTimeout     = (int) ($config['timeout']    ?? 10);
+        $rateLimitConfig = $config['rate_limit']         ?? [];
+        $queueConfig     = $config['queue']              ?? [];
+
+        // Create Telegram service (also used for synchronous fallback path)
         $telegramService = new TelegramService(
             $botToken,
-            $config['timeout'] ?? 10,
-            $config['rate_limit'] ?? []
+            $httpTimeout,
+            $rateLimitConfig,
         );
 
         // Parse log level
         $level = $this->parseLevel($config['level'] ?? 'error');
 
-        // Create handler
+        // Create handler — raw credentials forwarded so the queued job can
+        // reconstruct TelegramService on the worker process (Guzzle\Client
+        // is not serializable and cannot be passed directly to a job payload).
         $handler = new TelegramHandler(
             $telegramService,
             $chatId,
-            $config['topic_id'] ?? null,
+            $config['topic_id']  ?? null,
             $level,
             true,
-            $config['retry'] ?? []
+            $config['retry']     ?? [],
+            $botToken,
+            $httpTimeout,
+            $rateLimitConfig,
+            $queueConfig,
         );
 
         // Create formatter with options
@@ -103,4 +113,3 @@ class CreateTelegramLogger
         return Logger::toMonologLevel($level);
     }
 }
-

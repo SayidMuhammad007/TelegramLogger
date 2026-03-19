@@ -119,5 +119,32 @@ return [
     |
     */
     'timeout' => env('TELEGRAM_LOG_TIMEOUT', 10),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Queue Configuration
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, log messages are dispatched to a queue worker instead of
+    | blocking the HTTP worker that generated the log entry. The php-fpm worker
+    | returns in <1ms and the Telegram HTTP call happens on a separate process.
+    |
+    | connection: null = use the application default queue connection.
+    | queue:      dedicated queue name (isolates telegram retries from app jobs).
+    |
+    | IMPORTANT: If the resolved queue driver is "sync", this setting is ignored
+    | and the package falls back to synchronous delivery automatically — a sync
+    | driver executes jobs inline on the current process, which is identical to
+    | the original blocking behaviour.
+    |
+    | If queue dispatch itself fails (e.g. Redis is down), the package falls back
+    | to a synchronous send so the log message is never silently dropped.
+    |
+    */
+    'queue' => [
+        'enabled'    => env('TELEGRAM_LOG_QUEUE_ENABLED', false),
+        'connection' => env('TELEGRAM_LOG_QUEUE_CONNECTION', null),
+        'queue'      => env('TELEGRAM_LOG_QUEUE_NAME', 'default'),
+    ],
 ];
 
